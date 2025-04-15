@@ -50,13 +50,19 @@ git clone https://github.com/your-username/attendance-calculator.git
 cd attendance-calculator
 
 ☁️ Deploying on Streamlit Cloud
-Push this project to your GitHub account.
+1. Push this project to your GitHub account.
 
-Go to Streamlit Cloud and click "New app".
+2. Go to Streamlit Cloud and click "New app".
 
-Connect your GitHub repo.
+3. Connect your GitHub repo.
 
-Set the main file path as:
+4. Set the main file path as:
+
+attendance_app.py
+
+5. Click Deploy and your app will go live! 🚀
+
+
 
 attendance-calculator/
 ├── attendance_app.py         # Streamlit app script
