@@ -1,114 +1,111 @@
 import streamlit as st
 import pandas as pd
 import calendar
+import matplotlib.pyplot as plt
+from datetime import datetime
+from PIL import Image
 
-# ------------------- Page Config -------------------
-st.set_page_config(
-    page_title="Attendance Tracker | M S Mohan Kumar",
-    layout="wide"
-)
+st.set_page_config(page_title="Attendance App", layout="wide")
 
-# ------------------- Header & Info -------------------
-st.markdown("<h1 style='text-align: center;'>📅 Attendance Tracker App</h1>", unsafe_allow_html=True)
-st.markdown("<h4 style='text-align: center;'>✨ Made by <span style='color: teal;'>M S Mohan Kumar</span></h4>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center;'>🔐 For internal use only | Track monthly WFO, WFH, and attendance percentages</p>", unsafe_allow_html=True)
-st.markdown("---")
+# Title and Branding
+col1, col2 = st.columns([4, 1])
+with col1:
+    st.title("📅 Attendance Tracker")
+    st.markdown("**Made by M S Mohan Kumar**")
+    st.markdown("ℹ️ _This tool is for internal use only_")
+with col2:
+    st.image("https://cdn-icons-png.flaticon.com/512/942/942748.png", width=80)
 
-# Optional image (uncomment if you want to use your own)
-# st.image("https://www.example.com/banner_image.jpg", use_column_width=True)
+# Load saved data
+csv_file = "attendance_records.csv"
+if "attendance_data" not in st.session_state:
+    try:
+        st.session_state.attendance_data = pd.read_csv(csv_file)
+    except FileNotFoundError:
+        st.session_state.attendance_data = pd.DataFrame(columns=[
+            "Month", "Expected Days", "Work from Office Days", "Work from Home Days",
+            "Total Present", "Attendance %", "Work from Office %", "Work from Home %"
+        ])
 
-# ------------------- Session Init -------------------
-months = list(calendar.month_name)[1:]
-if 'attendance_data' not in st.session_state:
-    st.session_state.attendance_data = pd.DataFrame(columns=[
-        "Month", "Expected Days", "WFO Days", "WFH Days", "Total Present", "Attendance %", "WFO %"
-    ])
+# Select Month and Input
+st.header("📥 Monthly Attendance Entry")
+selected_month = st.selectbox("Select a Month:", list(calendar.month_name)[1:])
+expected_days = st.number_input("Enter total expected working days:", min_value=1, step=1)
+wfo_days = st.number_input("Enter number of Work from Office days:", min_value=0, step=1)
 
-# ------------------- Layout: Split into columns -------------------
-left_col, right_col = st.columns([2, 1])
-
-# ------------- Left Side: Attendance Input ---------------
-with left_col:
-    st.header("🗓️ Monthly Attendance Entry")
-
-    selected_month = st.selectbox("📌 Select Month", months)
-    expected_days = st.number_input("Total Working Days in the Month", min_value=1, max_value=31, step=1)
-    wfo_days = st.number_input("Days Worked from Office", min_value=0, max_value=31, step=1)
-
-    if st.button("💾 Save Attendance"):
-        if wfo_days > expected_days:
-            st.error("❌ WFO days cannot be more than expected working days.")
-        else:
-            wfh_days = expected_days - wfo_days
-            total_present = wfo_days + wfh_days
-            attendance_percent = (total_present / expected_days) * 100
-            wfo_percent = (wfo_days / expected_days) * 100
-
-            # Remove previous entry for this month
-            st.session_state.attendance_data = st.session_state.attendance_data[
-                st.session_state.attendance_data["Month"] != selected_month
-            ]
-
-            new_row = {
-                "Month": selected_month,
-                "Expected Days": expected_days,
-                "WFO Days": wfo_days,
-                "WFH Days": wfh_days,
-                "Total Present": total_present,
-                "Attendance %": round(attendance_percent, 2),
-                "WFO %": round(wfo_percent, 2)
-            }
-
-            st.session_state.attendance_data = pd.concat(
-                [st.session_state.attendance_data, pd.DataFrame([new_row])],
-                ignore_index=True
-            )
-
-            st.success(f"✅ Attendance for {selected_month} saved successfully!")
-
-# ------------- Right Side: Calculator ---------------
-with right_col:
-    st.markdown("### 🧮 WFO Attendance Calculator")
-    st.markdown("Check your WFO percentage on the go! 🕵️‍♂️")
-
-    calc_expected_days = st.number_input("📆 Total Working Days", min_value=1, step=1, key="calc1")
-    calc_wfo_days = st.number_input("🏢 Worked from Office", min_value=0, step=1, key="calc2")
-
-    if calc_expected_days > 0:
-        calc_pct = (calc_wfo_days / calc_expected_days) * 100
-        st.success(f"🎯 WFO Attendance: **{calc_pct:.2f}%**")
-
-        if calc_pct < 60:
-            st.error("🚨 Warning: WFO is below 60%!")
-        elif calc_pct < 75:
-            st.warning("⚠️ Your WFO percentage is below 75%")
+# Save Entry
+if st.button("➕ Add Month Record"):
+    if expected_days < wfo_days:
+        st.error("🚫 Work from Office days cannot be greater than total expected days.")
     else:
-        st.info("Please enter valid working days.")
+        # Calculations
+        work_from_home_days = expected_days - wfo_days
+        total_present = wfo_days + work_from_home_days
+        attendance_percent = (total_present / expected_days) * 100
+        wfo_percent = (wfo_days / expected_days) * 100
+        wfh_percent = (work_from_home_days / expected_days) * 100
 
-# ------------------- Summary Table -------------------
-st.markdown("---")
-st.header("📋 Yearly Attendance Summary")
+        # Remove old record if month already exists
+        st.session_state.attendance_data = st.session_state.attendance_data[
+            st.session_state.attendance_data["Month"] != selected_month
+        ]
 
-if not st.session_state.attendance_data.empty:
-    df = st.session_state.attendance_data.sort_values(by="Month")
-    st.dataframe(df, use_container_width=True)
+        # Append new row
+        new_row = {
+            "Month": selected_month,
+            "Expected Days": expected_days,
+            "Work from Office Days": wfo_days,
+            "Work from Home Days": work_from_home_days,
+            "Total Present": total_present,
+            "Attendance %": round(attendance_percent, 2),
+            "Work from Office %": round(wfo_percent, 2),
+            "Work from Home %": round(wfh_percent, 2)
+        }
+        st.session_state.attendance_data = pd.concat(
+            [st.session_state.attendance_data, pd.DataFrame([new_row])],
+            ignore_index=True
+        )
 
-    # Warnings
-    for _, row in df.iterrows():
-        if row["Attendance %"] < 60:
-            st.error(f"❌ Critical: Attendance in **{row['Month']}** is below 60%!")
-        elif row["Attendance %"] < 75:
-            st.warning(f"⚠️ Low Attendance in **{row['Month']}**")
+        # Save to CSV
+        st.session_state.attendance_data.to_csv(csv_file, index=False)
+        st.success(f"✅ Your data for {selected_month} has been saved successfully!")
 
-        if row["WFO %"] < 60:
-            st.warning(f"🚨 WFO below 60% in **{row['Month']}**")
+# Display Data
+st.header("📊 Attendance Summary")
+df = st.session_state.attendance_data
+st.dataframe(df)
 
-    # Charts
-    st.subheader("📊 WFO vs WFH Distribution")
-    st.bar_chart(df.set_index("Month")[["WFH Days", "WFO Days"]])
+# Warnings
+for _, row in df.iterrows():
+    if row["Attendance %"] < 60:
+        st.error(f"❌ Critical: Attendance in **{row['Month']}** is below 60%!")
+    elif row["Attendance %"] < 75:
+        st.warning(f"⚠️ Low Attendance in **{row['Month']}**")
 
-    st.subheader("📈 Attendance % Over Months")
+    if row["Work from Office %"] < 60:
+        st.warning(f"🚨 Warning: Your Work from Office percentage is below 60% in **{row['Month']}**.")
+
+    if row["Work from Home %"] > 60:
+        st.warning(
+            f"🔔 Warning: Your Work from Home percentage is above 60% in **{row['Month']}**. "
+            f"Consider balancing with Work from Office days."
+        )
+
+# Charts
+st.subheader("📈 Visual Trends")
+col_chart1, col_chart2 = st.columns(2)
+
+with col_chart1:
+    st.bar_chart(df.set_index("Month")[["Work from Home Days", "Work from Office Days"]])
+
+with col_chart2:
     st.line_chart(df.set_index("Month")["Attendance %"])
 
-else:
-    st.info("👈 Use the left section to add monthly attendance records.")
+# Optional Calculator
+with st.sidebar:
+    st.header("🧮 Quick Calculator")
+    cal_total = st.number_input("🔢 Total Working Days", min_value=1, key="calc_total")
+    cal_present = st.number_input("🎯 Days Present", min_value=0, key="calc_present")
+    if cal_total > 0:
+        percent = (cal_present / cal_total) * 100
+        st.info(f"📌 Attendance: **{percent:.2f}%**")
